@@ -1,11 +1,35 @@
 from abc import ABC
+import pygame
+
+__author__ = 'Jacob Wilson'
+
 
 BOARD_SIZE = (4, 4)
 
 CHECK_IN_BOARD = lambda x, y: 0 <= x <= BOARD_SIZE[0] and 0 <= y <= BOARD_SIZE[1]
 
-GRID_SIZE = 50
+GRID_SIZE = 100
 MARGIN = 5
+
+DARK_GREY = (100, 100, 100)
+LIGHT_GREY = (150, 150, 150)
+
+pygame.init()
+pygame.display.set_mode((1000, 1000))
+
+# Piece Images
+BLACK_BISHOP = pygame.image.load('Images/BlackBishop.png').convert()
+BLACK_EMPEROR = pygame.image.load('Images/BlackEmperor.png').convert()
+BLACK_SWORDSMAN = pygame.image.load('Images/BlackSwordsman.png').convert()
+BLACK_TIGER = pygame.image.load('Images/BlackTiger.png').convert()
+
+GOLD_BISHOP = pygame.image.load('Images/GoldBishop.png').convert()
+GOLD_EMPEROR = pygame.image.load('Images/GoldEmperor.png').convert()
+GOLD_SWORDSMAN = pygame.image.load('Images/GoldSwordsman.png').convert()
+GOLD_TIGER = pygame.image.load('Images/GoldTiger.png').convert()
+
+
+
 
 class Piece(ABC):
     def __init__(self, x, y, allegiance):
@@ -26,6 +50,9 @@ class Piece(ABC):
     def get_takes(self):
         return ()
 
+    def get_image(self):
+        return
+
 
 class Emperor(Piece):
     def get_moves(self):
@@ -34,6 +61,9 @@ class Emperor(Piece):
 
     def get_takes(self):
         return self.get_moves()
+
+    def get_image(self):
+        return BLACK_EMPEROR if self.allegiance == 'BLACK' else GOLD_EMPEROR
 
 
 class Bishop(Piece):
@@ -49,6 +79,9 @@ class Bishop(Piece):
 
     def get_takes(self):
         return self.get_moves()
+
+    def get_image(self):
+        return BLACK_BISHOP if self.allegiance == 'BLACK' else GOLD_BISHOP
 
 
 class Swordsman(Piece):
@@ -66,6 +99,9 @@ class Swordsman(Piece):
                              (self.position[0], self.position[1] - 1)
                             ]
         return filter(CHECK_IN_BOARD, theoretical_takes)
+
+    def get_image(self):
+        return BLACK_SWORDSMAN if self.allegiance == 'BLACK' else GOLD_SWORDSMAN
 
 
 class Tiger(Piece):
@@ -85,16 +121,29 @@ def create_pieces(path, key):
         for y, line in enumerate(board_file.readlines()):
             for x, item in enumerate(line.split(',')):
                 try:
-                    pieces.append(key[item.strip()](x, y))
+                    pieces.append(key[item.strip()](x, y, 'Black' if y == 0 else 'Gold'))
                 except KeyError:
                     pass
 
     return pieces
 
 
-def display_board(screen, pieces)
+def display_board(screen, pieces):
+    for y in range(BOARD_SIZE[1]):
+        for x in range(BOARD_SIZE[0]):
+            pygame.draw.rect(screen, DARK_GREY if (x + y) % 2 else LIGHT_GREY, (GRID_SIZE * x, GRID_SIZE * y, GRID_SIZE, GRID_SIZE))
+
+    for piece in pieces:
+        screen.blit(piece.get_image(), (GRID_SIZE * piece.x, GRID_SIZE * piece.y))
+
+    pygame.display.flip()
 
 
+if __name__ == '__main__':
+    WINDOW = pygame.display.set_mode((1000, 1000))
+    pygame.display.set_caption('Gladiator')
 
+    pieces = create_pieces('default_board.csv', KEY)
 
-print(create_pieces('default_board.csv', KEY))
+    while True:
+        display_board(WINDOW, pieces)
