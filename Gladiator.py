@@ -6,16 +6,19 @@ __author__ = 'Jacob Wilson'
 
 BOARD_SIZE = (4, 4)
 
-CHECK_IN_BOARD = lambda pos: 0 <= pos[0] <= BOARD_SIZE[0] and 0 <= pos[1] <= BOARD_SIZE[1]
+CHECK_IN_BOARD = lambda pos: 0 <= pos[0] < BOARD_SIZE[0] and 0 <= pos[1] < BOARD_SIZE[1]
 
 GRID_SIZE = 100
 MARGIN = 5
+HEIGHT = 1000
+WIDTH = 1000
+
 
 DARK_GREY = (100, 100, 100)
 LIGHT_GREY = (150, 150, 150)
 
 pygame.init()
-pygame.display.set_mode((1000, 1000))
+pygame.display.set_mode((HEIGHT, WIDTH))
 
 # Piece Images
 BLACK_BISHOP = pygame.image.load('Images/BlackBishop.png').convert()
@@ -37,6 +40,7 @@ class Piece(ABC):
         self.position = [x, y]
         self.allegiance = allegiance
         self.selected = False
+        self.dead = False
 
     @property
     def x(self):
@@ -123,7 +127,7 @@ def create_pieces(path, key):
         for y, line in enumerate(board_file.readlines()):
             for x, item in enumerate(line.split(',')):
                 try:
-                    pieces.append(key[item.strip()](x, y, 'Black' if y == 0 else 'Gold'))
+                    pieces.append(key[item.strip()](x, y, 'BLACK' if y == 0 else 'GOLD'))
                 except KeyError:
                     pass
 
@@ -131,15 +135,22 @@ def create_pieces(path, key):
 
 
 def display_board(screen, pieces):
+    screen.fill((0, 0, 0))
     for y in range(BOARD_SIZE[1]):
         for x in range(BOARD_SIZE[0]):
             pygame.draw.rect(screen, DARK_GREY if (x + y) % 2 else LIGHT_GREY, (GRID_SIZE * x, GRID_SIZE * y, GRID_SIZE, GRID_SIZE))
 
+    dead_columns = [0, 0]
     for piece in filter(lambda x: not x.selected, pieces):
-        screen.blit(piece.get_image(), (GRID_SIZE * piece.x, GRID_SIZE * piece.y))
-
-
-
+        if piece.dead:
+            if piece.allegiance == 'BLACK':
+                screen.blit(piece.get_image(), (GRID_SIZE * (BOARD_SIZE + 2), GRID_SIZE * dead_columns[0]))
+                dead_columns[0] += 1
+            elif piece.allegiance == 'GOLD':
+                screen.blit(piece.get_image(), (GRID_SIZE * (BOARD_SIZE + 3) + MARGIN, GRID_SIZE * dead_columns[1]))
+                dead_columns[1] += 1
+        else:
+            screen.blit(piece.get_image(), (GRID_SIZE * piece.x, GRID_SIZE * piece.y))
 
 
 if __name__ == '__main__':
@@ -162,14 +173,13 @@ if __name__ == '__main__':
                     selected = None
                     for piece in pieces:
                         if pygame.Rect(piece.x * GRID_SIZE, piece.y * GRID_SIZE, GRID_SIZE, GRID_SIZE).collidepoint(event.pos[0], event.pos[1]):
-                            #piece.selected = True
                             selected = piece
                             selected_position = (event.pos[0] % GRID_SIZE, event.pos[1] % GRID_SIZE)
                     if selected is not None:
                         for move in selected.get_moves():
                             WINDOW.blit(HIGHLIGHT_MOVE, (move[0] * GRID_SIZE, move[1] * GRID_SIZE))
                         for take in selected.get_takes():
-                            if any(p.position == take for p in pieces):
+                            if any(p.position == take and p.allegiance != selected.allegiance for p in pieces):
                                 WINDOW.blit(HIGHLIGHT_TAKE, (take[0] * GRID_SIZE, take[1] * GRID_SIZE))
             elif event.type == pygame.MOUSEMOTION:
                 if selected is not None:
@@ -178,7 +188,10 @@ if __name__ == '__main__':
             elif event.type == pygame.MOUSEBUTTONUP:
                 if selected is not None and event.button == 1:
                     current_tile = (event.pos[0] // GRID_SIZE, event.pos[1] // GRID_SIZE)
-                    if current_tile in selected.get_takes() or current_tile in selected.get_moves():
+                    if current_tile in selected.get_takes():
+                        any([piece.position == current_tile and piece.allegiance != selected.allegiance for piece in pieces]):
+
+                    elif current_tile in selected.get_moves():
                         selected.position = current_tile
                     display_board(WINDOW, pieces)
                     selected = None
