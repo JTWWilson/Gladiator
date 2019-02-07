@@ -1,4 +1,3 @@
-from abc import ABC
 import pygame
 
 __author__ = 'Jacob Wilson'
@@ -50,51 +49,66 @@ BLACK_PIECES = (BLACK_EMPEROR, BLACK_BISHOP, BLACK_SWORDSMAN, BLACK_TIGER)
 GOLD_PIECES = (GOLD_EMPEROR, GOLD_BISHOP, GOLD_SWORDSMAN, GOLD_TIGER)
 
 
-def get_moves(piece, board):
-    if board[piece[0]][piece[1]] == 'e':
-        theoretical_moves = [(piece[0] + x, piece[1] + y) for y in range(0, 2) for x in range(-1, 2)]
-        return filter(CHECK_IN_BOARD, theoretical_moves)
+def get_moves(piece, location, board):
+    if piece in (BLACK_EMPEROR, GOLD_EMPEROR):
+        theoretical_moves = filter(CHECK_IN_BOARD, [(location[0] + x, location[1] + y) for y in range(0, 2) for x in range(-1, 2)])
+        theoretical_moves = filter(lambda move: board[move[0]][move[1]] == '-', theoretical_moves)
+        return theoretical_moves
 
-    elif board[piece[0]][piece[1]] == 'b':
+    elif piece in (BLACK_BISHOP, GOLD_BISHOP):
         theoretical_moves = []
         for change in range(1, BOARD_SIZE[0]):
-            theoretical_moves.append((piece[0] + change, piece[1] + change))
-            theoretical_moves.append((piece[0] - change, piece[1] + change))
-            theoretical_moves.append((piece[0] + change, piece[1] - change))
-            theoretical_moves.append((piece[0] - change, piece[1] - change))
+            theoretical_moves.append((location[0] + change, location[1] + change))
+            theoretical_moves.append((location[0] - change, location[1] + change))
+            theoretical_moves.append((location[0] + change, location[1] - change))
+            theoretical_moves.append((location[0] - change, location[1] - change))
+        theoretical_moves = filter(CHECK_IN_BOARD, theoretical_moves)
+        theoretical_moves = filter(lambda move: board[move[0]][move[1]] == '-', theoretical_moves)
+        return theoretical_moves
 
-        return filter(CHECK_IN_BOARD, theoretical_moves)
+    elif piece in (BLACK_SWORDSMAN, GOLD_SWORDSMAN):
+        theoretical_moves = [(location[0] + 1, location[1] + 1),
+                             (location[0] - 1, location[1] + 1),
+                             (location[0] + 1, location[1] - 1),
+                             (location[0] - 1, location[1] - 1)]
+        theoretical_moves = filter(CHECK_IN_BOARD, theoretical_moves)
+        theoretical_moves = filter(lambda move: board[move[0]][move[1]] == '-', theoretical_moves)
+        return theoretical_moves
 
-    elif board[piece[0]][piece[1]] == 's':
-        theoretical_moves = [(piece[0] + 1, piece[1] + 1),
-                             (piece[0] - 1, piece[1] + 1),
-                             (piece[0] + 1, piece[1] - 1),
-                             (piece[0] - 1, piece[1] - 1)]
-        return filter(CHECK_IN_BOARD, theoretical_moves)
 
+def get_takes(piece, location, board):
 
-def get_takes(piece, board):
-    if board[piece[0]][piece[1]] == 'e':
-        theoretical_moves = [(piece[0] + x, piece[1] + y) for y in range(0, 2) for x in range(-1, 2)]
-        return filter(CHECK_IN_BOARD, theoretical_moves)
+    def check_other_piece(take):
+        if location in BLACK_PIECES:
+            return board[take[0]][take[1]] in GOLD_PIECES
+        if location in GOLD_PIECES:
+            return board[take[0]][take[1]] in BLACK_PIECES
 
-    elif board[piece[0]][piece[1]] == 'b':
-        theoretical_moves = []
+    if piece in (BLACK_EMPEROR, GOLD_EMPEROR):
+        theoretical_takes = filter(CHECK_IN_BOARD, [(location[0] + x, location[1] + y) for y in range(0, 2) for x in range(-1, 2)])
+        theoretical_takes = filter(check_other_piece, theoretical_takes)
+        return theoretical_takes
+
+    elif piece in (BLACK_BISHOP, GOLD_BISHOP):
+        theoretical_takes = []
         for change in range(1, BOARD_SIZE[0]):
-            theoretical_moves.append((piece[0] + change, piece[1] + change))
-            theoretical_moves.append((piece[0] - change, piece[1] + change))
-            theoretical_moves.append((piece[0] + change, piece[1] - change))
-            theoretical_moves.append((piece[0] - change, piece[1] - change))
+            theoretical_takes.append((location[0] + change, location[1] + change))
+            theoretical_takes.append((location[0] - change, location[1] + change))
+            theoretical_takes.append((location[0] + change, location[1] - change))
+            theoretical_takes.append((location[0] - change, location[1] - change))
+        theoretical_takes = filter(CHECK_IN_BOARD, theoretical_takes)
+        theoretical_takes = filter(check_other_piece, theoretical_takes)
+        return theoretical_takes
 
-        return filter(CHECK_IN_BOARD, theoretical_moves)
-
-    elif board[piece[0]][piece[1]] == 's':
-        theoretical_takes = [(piece[0] + 1, piece[1]),
-                             (piece[0] - 1, piece[1]),
-                             (piece[0], piece[1] + 1),
-                             (piece[0], piece[1] - 1)
+    elif piece in (BLACK_SWORDSMAN, GOLD_SWORDSMAN):
+        theoretical_takes = [(location[0] + 1, location[1]),
+                             (location[0] - 1, location[1]),
+                             (location[0], location[1] + 1),
+                             (location[0], location[1] - 1)
                             ]
-        return filter(CHECK_IN_BOARD, theoretical_takes)
+        theoretical_takes = filter(CHECK_IN_BOARD, theoretical_takes)
+        theoretical_takes = filter(check_other_piece, theoretical_takes)
+        return theoretical_takes
 
 
 def create_board(path):
@@ -134,6 +148,7 @@ if __name__ == '__main__':
     dead = {'BLACK': [], 'GOLD': []}
 
     selected = None
+    piece = None
     selected_position = (0, 0)
 
     display_board(WINDOW, board, dead)
@@ -148,24 +163,24 @@ if __name__ == '__main__':
                 display_board(WINDOW, board, dead)
                 if event.button == 1:
                     selected = (event.pos[0] // GRID_SIZE, event.pos[1] // GRID_SIZE)
+                    selected_position = (event.pos[0] % GRID_SIZE, event.pos[1] % GRID_SIZE)
+                    piece = board[selected[0]][selected[1]]
                     board[selected[0]][selected[1]] = '-'
-                    WINDOW.blit(selected.get_image(), (event.pos[0] - selected_position[0], event.pos[1] - selected_position[1]))
-                    for move in get_moves(selected, board):
+                    WINDOW.blit(piece, (event.pos[0] - selected_position[0], event.pos[1] - selected_position[1]))
+                    for move in get_moves(piece, selected, board):
                         if board[move[0]][move[1]] == None:
                             WINDOW.blit(HIGHLIGHT_MOVE, (GRID_SIZE * move[0], GRID_SIZE * move[1]))
-                    for take in get_takes(selected, board):
-                        if selected in GOLD_PIECES and board[take[0]][take[1]] in BLACK_PIECES or \
-                           selected in BLACK_PIECES and board[take[0]][take[1]] in GOLD_PIECES:
-                            WINDOW.blit(HIGHLIGHT_TAKE, (GRID_SIZE * take[0], GRID_SIZE * take[1]))
+                    for take in get_takes(piece, selected, board):
+                        WINDOW.blit(HIGHLIGHT_TAKE, (GRID_SIZE * take[0], GRID_SIZE * take[1]))
             elif event.type == pygame.MOUSEMOTION:
                 if selected is not None:
                     display_board(WINDOW, board, dead)
-                    WINDOW.blit(selected.get_image(), (event.pos[0] - selected_position[0], event.pos[1] - selected_position[1]))
+                    WINDOW.blit(piece, (event.pos[0] - selected_position[0], event.pos[1] - selected_position[1]))
             elif event.type == pygame.MOUSEBUTTONUP:
                 if selected is not None and event.button == 1:
                     current_tile = (event.pos[0] // GRID_SIZE, event.pos[1] // GRID_SIZE)
-                    if current_tile in selected.get_takes():
-                        pass
+                    if current_tile in get_takes(piece, selected, board):
+                        board[current_tile[0]][current_tile[1]] = piece
 
                     elif current_tile in selected.get_moves():
                         selected.position = current_tile
