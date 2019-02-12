@@ -1,4 +1,5 @@
 import pygame
+from copy import copy
 
 __author__ = 'Jacob Wilson'
 
@@ -34,39 +35,74 @@ HIGHLIGHT_MOVE = pygame.image.load('Images/HighlightMove.png').convert_alpha()
 HIGHLIGHT_TAKE = pygame.image.load('Images/HighlightTake.png').convert_alpha()
 
 PIECE_TO_IMAGE = {
-    'be': BLACK_EMPEROR,
-    'bb': BLACK_BISHOP,
-    'bw': BLACK_SWORDSMAN,
-    'bt': BLACK_TIGER,
-    'ge': GOLD_EMPEROR,
-    'gb': GOLD_BISHOP,
-    'gw': GOLD_SWORDSMAN,
-    'gt': GOLD_TIGER,
+    'BLACKe': BLACK_EMPEROR,
+    'BLACKb': BLACK_BISHOP,
+    'BLACKw': BLACK_SWORDSMAN,
+    'BLACKt': BLACK_TIGER,
+    'GOLDe': GOLD_EMPEROR,
+    'GOLDb': GOLD_BISHOP,
+    'GOLDw': GOLD_SWORDSMAN,
+    'GOLDt': GOLD_TIGER,
     '-': '-'
 }
 
-BLACK_PIECES = (BLACK_EMPEROR, BLACK_BISHOP, BLACK_SWORDSMAN, BLACK_TIGER)
-GOLD_PIECES = (GOLD_EMPEROR, GOLD_BISHOP, GOLD_SWORDSMAN, GOLD_TIGER)
+BLACK_PIECES = ('BLACKe', 'BLACKb', 'BLACKw', 'BLACKt')
+GOLD_PIECES = ('GOLDe', 'GOLDb', 'GOLDw', 'GOLDt')
+
+GOLD_EMPEROR_DIRECTION = [0, -1]
+BLACK_EMPEROR_DIRECTION = [0, 1]
+
+GOLD_TARGET_ROW = 0
+BLACK_TARGET_ROW = BOARD_SIZE[1] - 1
+
+is_empty_tile = lambda move: board[move[0]][move[1]] == '-'
 
 
 def get_moves(piece, location, board):
-    if piece in (BLACK_EMPEROR, GOLD_EMPEROR):
-        theoretical_moves = filter(CHECK_IN_BOARD, [(location[0] + x, location[1] + y) for y in range(0, 2) for x in range(-1, 2)])
-        theoretical_moves = filter(lambda move: board[move[0]][move[1]] == '-', theoretical_moves)
+    if piece[-1] == 'e':
+        if piece[0] == 'B':
+            theoretical_moves = [(location[0] + y, location[1] + x) for y in [0, BLACK_EMPEROR_DIRECTION[1]] for x in range(-1, 2)]
+        else:
+            theoretical_moves = [(location[0] + y, location[1] + x) for y in [0, GOLD_EMPEROR_DIRECTION[1]] for x in range(-1, 2)]
+        theoretical_moves = filter(CHECK_IN_BOARD, theoretical_moves)
+        theoretical_moves = list(filter(is_empty_tile, theoretical_moves))
+        if location in theoretical_moves:
+            theoretical_moves.remove(location)
         return theoretical_moves
 
-    elif piece in (BLACK_BISHOP, GOLD_BISHOP):
+    elif piece[-1] == 'b':
         theoretical_moves = []
         for change in range(1, BOARD_SIZE[0]):
-            theoretical_moves.append((location[0] + change, location[1] + change))
-            theoretical_moves.append((location[0] - change, location[1] + change))
-            theoretical_moves.append((location[0] + change, location[1] - change))
-            theoretical_moves.append((location[0] - change, location[1] - change))
-        theoretical_moves = filter(CHECK_IN_BOARD, theoretical_moves)
-        theoretical_moves = filter(lambda move: board[move[0]][move[1]] == '-', theoretical_moves)
+            new_move = (location[0] + change, location[1] + change)
+            if not CHECK_IN_BOARD(new_move):
+                break
+            if not is_empty_tile(new_move):
+                break
+            theoretical_moves.append(new_move)
+        for change in range(1, BOARD_SIZE[0]):
+            new_move = (location[0] - change, location[1] + change)
+            if not CHECK_IN_BOARD(new_move):
+                break
+            if not is_empty_tile(new_move):
+                break
+            theoretical_moves.append(new_move)
+        for change in range(1, BOARD_SIZE[0]):
+            new_move = (location[0] + change, location[1] - change)
+            if not CHECK_IN_BOARD(new_move):
+                break
+            if not is_empty_tile(new_move):
+                break
+            theoretical_moves.append(new_move)
+        for change in range(1, BOARD_SIZE[0]):
+            new_move = (location[0] - change, location[1] - change)
+            if not CHECK_IN_BOARD(new_move):
+                break
+            if not is_empty_tile(new_move):
+                break
+            theoretical_moves.append(new_move)
         return theoretical_moves
 
-    elif piece in (BLACK_SWORDSMAN, GOLD_SWORDSMAN):
+    elif piece[-1] == 'w':
         theoretical_moves = [(location[0] + 1, location[1] + 1),
                              (location[0] - 1, location[1] + 1),
                              (location[0] + 1, location[1] - 1),
@@ -75,32 +111,84 @@ def get_moves(piece, location, board):
         theoretical_moves = filter(lambda move: board[move[0]][move[1]] == '-', theoretical_moves)
         return theoretical_moves
 
+    elif piece[-1] == 't':
+        theoretical_moves = []
+        for change in range(1, BOARD_SIZE[0]):
+            new_move = (location[0], location[1] + change)
+            if not CHECK_IN_BOARD(new_move):
+                break
+            if not is_empty_tile(new_move):
+                break
+            theoretical_moves.append(new_move)
+        for change in range(1, BOARD_SIZE[0]):
+            new_move = (location[0], location[1] - change)
+            if not CHECK_IN_BOARD(new_move):
+                break
+            if not is_empty_tile(new_move):
+                break
+            theoretical_moves.append(new_move)
+        for change in range(1, BOARD_SIZE[0]):
+            new_move = (location[0] + change, location[1])
+            if not CHECK_IN_BOARD(new_move):
+                break
+            if not is_empty_tile(new_move):
+                break
+            theoretical_moves.append(new_move)
+        for change in range(1, BOARD_SIZE[0]):
+            new_move = (location[0] - change, location[1])
+            if not CHECK_IN_BOARD(new_move):
+                break
+            if not is_empty_tile(new_move):
+                break
+            theoretical_moves.append(new_move)
+        return theoretical_moves
+
 
 def get_takes(piece, location, board):
 
     def check_other_piece(take):
-        if location in BLACK_PIECES:
+        if piece in BLACK_PIECES:
             return board[take[0]][take[1]] in GOLD_PIECES
-        if location in GOLD_PIECES:
+        if piece in GOLD_PIECES:
             return board[take[0]][take[1]] in BLACK_PIECES
 
-    if piece in (BLACK_EMPEROR, GOLD_EMPEROR):
-        theoretical_takes = filter(CHECK_IN_BOARD, [(location[0] + x, location[1] + y) for y in range(0, 2) for x in range(-1, 2)])
-        theoretical_takes = filter(check_other_piece, theoretical_takes)
+    if piece[-1] == 'e':
+        if piece[0] == 'B':
+            theoretical_takes = [(location[0] + y, location[1] + x) for y in [0, BLACK_EMPEROR_DIRECTION[1]] for x in range(-1, 2)]
+        else:
+            theoretical_takes = [(location[0] + y, location[1] + x) for y in [0, GOLD_EMPEROR_DIRECTION[1]] for x in range(-1, 2)]
+        theoretical_takes = filter(CHECK_IN_BOARD, theoretical_takes)
+        theoretical_takes = list(filter(check_other_piece, theoretical_takes))
+        if location in theoretical_takes:
+            theoretical_takes.remove(location)
         return theoretical_takes
 
-    elif piece in (BLACK_BISHOP, GOLD_BISHOP):
+    elif piece[-1] == 'b':
         theoretical_takes = []
         for change in range(1, BOARD_SIZE[0]):
-            theoretical_takes.append((location[0] + change, location[1] + change))
-            theoretical_takes.append((location[0] - change, location[1] + change))
-            theoretical_takes.append((location[0] + change, location[1] - change))
-            theoretical_takes.append((location[0] - change, location[1] - change))
-        theoretical_takes = filter(CHECK_IN_BOARD, theoretical_takes)
+            new_take = (location[0] + change, location[1] + change)
+            if not CHECK_IN_BOARD(new_take):
+                break
+            theoretical_takes.append(new_take)
+        for change in range(1, BOARD_SIZE[0]):
+            new_take = (location[0] - change, location[1] + change)
+            if not CHECK_IN_BOARD(new_take):
+                break
+            theoretical_takes.append(new_take)
+        for change in range(1, BOARD_SIZE[0]):
+            new_take = (location[0] + change, location[1] - change)
+            if not CHECK_IN_BOARD(new_take):
+                break
+            theoretical_takes.append(new_take)
+        for change in range(1, BOARD_SIZE[0]):
+            new_take = (location[0] - change, location[1] - change)
+            if not CHECK_IN_BOARD(new_take):
+                break
+            theoretical_takes.append(new_take)
         theoretical_takes = filter(check_other_piece, theoretical_takes)
-        return theoretical_takes
+        return list(theoretical_takes)
 
-    elif piece in (BLACK_SWORDSMAN, GOLD_SWORDSMAN):
+    elif piece[-1] == 'w':
         theoretical_takes = [(location[0] + 1, location[1]),
                              (location[0] - 1, location[1]),
                              (location[0], location[1] + 1),
@@ -110,6 +198,40 @@ def get_takes(piece, location, board):
         theoretical_takes = filter(check_other_piece, theoretical_takes)
         return theoretical_takes
 
+    elif piece[-1] == 't':
+        theoretical_takes = []
+        return []
+
+        for change in range(1, BOARD_SIZE[0]):
+            new_move = (location[0], location[1] + change)
+            if not CHECK_IN_BOARD(new_move):
+                break
+            if not is_empty_tile(new_move):
+                break
+            theoretical_moves.append(new_move)
+        for change in range(1, BOARD_SIZE[0]):
+            new_move = (location[0], location[1] - change)
+            if not CHECK_IN_BOARD(new_move):
+                break
+            if not is_empty_tile(new_move):
+                break
+            theoretical_moves.append(new_move)
+        for change in range(1, BOARD_SIZE[0]):
+            new_move = (location[0] + change, location[1])
+            if not CHECK_IN_BOARD(new_move):
+                break
+            if not is_empty_tile(new_move):
+                break
+            theoretical_moves.append(new_move)
+        for change in range(1, BOARD_SIZE[0]):
+            new_move = (location[0] - change, location[1])
+            if not CHECK_IN_BOARD(new_move):
+                break
+            if not is_empty_tile(new_move):
+                break
+            theoretical_moves.append(new_move)
+        return theoretical_moves
+
 
 def create_board(path):
     board = []
@@ -118,7 +240,7 @@ def create_board(path):
             row = []
             for x, item in enumerate(line.split(',')):
                 try:
-                    row.append(PIECE_TO_IMAGE[('b' if y == 0 else 'g' if y == BOARD_SIZE[1] - 1 else '') + item.strip()])
+                    row.append(('BLACK' if y == 0 else 'GOLD' if y == BOARD_SIZE[1] - 1 else '') + item.strip())
                 except KeyError:
                     pass
             board.append(row)
@@ -127,17 +249,30 @@ def create_board(path):
 
 def display_board(screen, board, dead):
     screen.fill((0, 0, 0))
-    for y, row in enumerate(board):
-        for x, item in enumerate(row):
+    for x, row in enumerate(board):
+        for y, item in enumerate(row):
             if item == '-':
-                pygame.draw.rect(screen, DARK_GREY if (x + y) % 2 else LIGHT_GREY, (GRID_SIZE * x, GRID_SIZE * y, GRID_SIZE, GRID_SIZE))
+                pygame.draw.rect(screen, DARK_GREY if (x + y) % 2 else LIGHT_GREY, (GRID_SIZE * y, GRID_SIZE * x, GRID_SIZE, GRID_SIZE))
             else:
-                screen.blit(item, (GRID_SIZE * x, GRID_SIZE * y))
+                screen.blit(PIECE_TO_IMAGE[item], (GRID_SIZE * y, GRID_SIZE * x))
 
     for index, piece in enumerate(dead['BLACK']):
-        screen.blit(piece.get_image(), (GRID_SIZE * (BOARD_SIZE + 2), GRID_SIZE * index))
-    for index, piece in enumerate(dead['BLACK']):
-        screen.blit(piece.get_image(), (GRID_SIZE * (BOARD_SIZE + 3) + MARGIN, GRID_SIZE * index))
+        screen.blit(PIECE_TO_IMAGE[piece], (GRID_SIZE * (BOARD_SIZE[0] + 2), GRID_SIZE * index))
+    for index, piece in enumerate(dead['GOLD']):
+        screen.blit(PIECE_TO_IMAGE[piece], (GRID_SIZE * (BOARD_SIZE[0] + 3) + MARGIN, GRID_SIZE * index))
+
+
+def check_win(board):
+    if not any(['GOLDe' in row for row in board]):
+        print('BLACK WIN')
+        quit()
+    if not any(['BLACKe' in row for row in board]):
+        print('GOLD WIN')
+        quit()
+
+
+def rotate_board(board, piece, dead):
+
 
 
 if __name__ == '__main__':
@@ -150,6 +285,7 @@ if __name__ == '__main__':
     selected = None
     piece = None
     selected_position = (0, 0)
+    turn = GOLD_PIECES
 
     display_board(WINDOW, board, dead)
     pygame.display.flip()
@@ -162,28 +298,52 @@ if __name__ == '__main__':
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 display_board(WINDOW, board, dead)
                 if event.button == 1:
-                    selected = (event.pos[0] // GRID_SIZE, event.pos[1] // GRID_SIZE)
-                    selected_position = (event.pos[0] % GRID_SIZE, event.pos[1] % GRID_SIZE)
+                    selected = (event.pos[1] // GRID_SIZE, event.pos[0] // GRID_SIZE)
+                    selected_position = (event.pos[1] % GRID_SIZE, event.pos[0] % GRID_SIZE)
                     piece = board[selected[0]][selected[1]]
+                    if piece not in turn:
+                        selected = None
+                        piece = None
+                        continue
                     board[selected[0]][selected[1]] = '-'
-                    WINDOW.blit(piece, (event.pos[0] - selected_position[0], event.pos[1] - selected_position[1]))
+                    WINDOW.blit(PIECE_TO_IMAGE[piece], (event.pos[0] - selected_position[0], event.pos[1] - selected_position[1]))
                     for move in get_moves(piece, selected, board):
-                        if board[move[0]][move[1]] == None:
-                            WINDOW.blit(HIGHLIGHT_MOVE, (GRID_SIZE * move[0], GRID_SIZE * move[1]))
+                        if board[move[0]][move[1]] == '-':
+                            WINDOW.blit(HIGHLIGHT_MOVE, (GRID_SIZE * move[1], GRID_SIZE * move[0]))
                     for take in get_takes(piece, selected, board):
-                        WINDOW.blit(HIGHLIGHT_TAKE, (GRID_SIZE * take[0], GRID_SIZE * take[1]))
+                        WINDOW.blit(HIGHLIGHT_TAKE, (GRID_SIZE * take[1], GRID_SIZE * take[0]))
+                    pygame.display.flip()
             elif event.type == pygame.MOUSEMOTION:
                 if selected is not None:
                     display_board(WINDOW, board, dead)
-                    WINDOW.blit(piece, (event.pos[0] - selected_position[0], event.pos[1] - selected_position[1]))
+                    for move in get_moves(piece, selected, board):
+                        if board[move[0]][move[1]] == '-':
+                            WINDOW.blit(HIGHLIGHT_MOVE, (GRID_SIZE * move[1], GRID_SIZE * move[0]))
+                    for take in get_takes(piece, selected, board):
+                        WINDOW.blit(HIGHLIGHT_TAKE, (GRID_SIZE * take[1], GRID_SIZE * take[0]))
+                    WINDOW.blit(PIECE_TO_IMAGE[piece], (event.pos[0] - selected_position[0], event.pos[1] - selected_position[1]))
             elif event.type == pygame.MOUSEBUTTONUP:
                 if selected is not None and event.button == 1:
-                    current_tile = (event.pos[0] // GRID_SIZE, event.pos[1] // GRID_SIZE)
+                    current_tile = (event.pos[1] // GRID_SIZE, event.pos[0] // GRID_SIZE)
                     if current_tile in get_takes(piece, selected, board):
+                        if board[current_tile[0]][current_tile[1]] in BLACK_PIECES:
+                            dead['BLACK'].append((board[current_tile[0]][current_tile[1]]))
+                        elif board[current_tile[0]][current_tile[1]] in GOLD_PIECES:
+                            dead['GOLD'].append((board[current_tile[0]][current_tile[1]]))
                         board[current_tile[0]][current_tile[1]] = piece
+                    elif current_tile in get_moves(piece, selected, board):
+                        board[current_tile[0]][current_tile[1]] = piece
+                    else:
+                        board[selected[0]][selected[1]] = piece
+                    display_board(WINDOW, board, dead)
 
-                    elif current_tile in selected.get_moves():
-                        selected.position = current_tile
-                    display_board(WINDOW, pieces)
+                    if piece == 'GOLDe':
+                        rotate_board(board, piece, dead)
+                    if piece == 'BLACKe':
+                        rotate_board(board, piece, dead)
+
                     selected = None
+                    piece = None
+                    turn = BLACK_PIECES if turn == GOLD_PIECES else GOLD_PIECES
+                    check_win(board)
         pygame.display.flip()
